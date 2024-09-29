@@ -1,0 +1,511 @@
+---
+title: |
+  `r if (knitr::is_html_output()) {"<center>HarvardX PH125.9x: Capstone Project 2 <br> Online Shopper’s Purchasing Intention <br> Model Comparison</center>"} else {"HarvardX PH125.9x: Capstone Project 2 \\ Online Shopper’s Purchasing Intention \\ Model Comparison"}`
+author: "Dr Luis Satch"
+date: "2024-09-28"
+language: "English (Australia)"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+header-includes:
+- \usepackage{fontspec}
+- \setmainfont{Arial}
+- \usepackage{listings}
+- \lstset{numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, breaklines=true, breakatwhitespace=true, xrightmargin=4cm}
+- \usepackage{color}
+- \usepackage{inconsolata}
+---
+
+# Table of Contents
+
+| |  |
+|-------------|----------|
+| [1. Introduction](#introduction) | Pg. 1 |
+| [2. Install Libraries](#install-libraries) | Pg. 2 |
+| [3. Load Libraries](#load-libraries) | Pg. 2 |
+| [4. Data Download and Preparation](#data-download-and-preparation) | Pg. 2 |
+| [5. Data Exploration](#data-exploration) | Pg. 3 |
+| [6. Visualising the Distribution of the Target Variable](#visualising-the-distribution-of-the-target-variable) | Pg. 6 |
+| [7. Calculating Correlation with Revenue](#calculating-correlation-with-revenue) | Pg. 11 |
+| [8. Feature Selection](#feature-selection) | Pg. 15 |
+| [9. Data Splitting and Scaling](#data-splitting-and-scaling) | Pg. 15 |
+| [10. Model 1: MLP Model](#model-1-mlp-model) | Pg. 16 |
+| [11. Hyperparameter Tuning for MLP Model](#hyperparameter-tuning-for-mlp-model) | Pg. 19 |
+| [12. Model 2: Random Forest Model](#model-2-random-forest-model) | Pg. 21 |
+| [13. Model Comparison and Feature Importance](#model-comparison-and-feature-importance) | Pg. 22 |
+| [14. Conclusion](#conclusion) | Pg. 26 |
+| [15. Sources](#sources) | Pg. 27 |
+
+
+## Introduction
+
+In the context of this capstone project, predicting online shoppers' purchasing intentions presents an opportunity to apply machine learning techniques to a practical and widely relevant problem. Being a significant part of the modern economy, e-commerce offers an interesting case study due to the availability of detailed user behaviour data
+
+This project aims to predict whether an online shopping session will result in a purchase by comparing two machine learning models: a Multilayer Perceptron (MLP) and a Random Forest classifier. By evaluating the performance of these models, I aim to determine which algorithm better identifies patterns related to purchasing behaviour. Additionally, feature importance analysis will be conducted to highlight key factors driving purchase decisions.
+
+The dataset used, the "Online Shoppers Purchasing Intention Dataset" from the UCI Machine Learning Repository, was selected because of its rich combination of numerical and categorical features—such as page views, bounce rates, and visitor types—that are commonly observed in e-commerce contexts. This dataset also poses interesting challenges like class imbalance and feature selection, which are addressed through careful preprocessing.
+
+
+## Install Libraries
+In this section, I ensure that all necessary libraries for data analysis, visualisation, and modelling are installed. These libraries include tools for handling data, building machine learning models, and evaluating model performance.
+
+```{R, echo=TRUE, message=FALSE, tidy=TRUE}
+# Install necessary libraries if they are not installed
+if(!require(httr)) install.packages("httr", dependencies = TRUE)
+if(!require(readr)) install.packages("readr", dependencies = TRUE)
+if(!require(ggplot2)) install.packages("ggplot2", dependencies = TRUE)
+if(!require(reshape2)) install.packages("reshape2", dependencies = TRUE)
+if(!require(psych)) install.packages("psych", dependencies = TRUE)
+if(!require(caret)) install.packages("caret", dependencies = TRUE)
+if(!require(caTools)) install.packages("caTools", dependencies = TRUE)
+if(!require(scales)) install.packages("scales", dependencies = TRUE)
+if(!require(nnet)) install.packages("nnet", dependencies = TRUE)
+if(!require(randomForest)) install.packages("randomForest", dependencies = TRUE)
+```
+
+## Load Libraries
+In this section, I load the libraries that I will use throughout the analysis, enabling access to their functions for tasks like data downloading, visualisation, and modelling.
+
+```{R}
+# Load necessary libraries
+library(httr)      # For making HTTP requests to access online data
+library(readr)     # For reading and writing CSV
+library(ggplot2)   # For creating visualisations and data plots
+library(reshape2)  # For creating heatmaps
+library(psych)     # For calculating point-biserial correlations
+library(caret)     # For one-hot encoding and model evaluation (confusion matrix)
+library(caTools)   # For splitting data into training and testing sets
+library(scales)    # For data scaling/normalisation
+library(nnet)      # For creating neural network models (Multilayer Perceptron)
+library(randomForest) # For building random forest models (ensemble learning)
+```
+
+## Data Download and Preparation
+This section loads the data from an online source. Then, I prepare data for further analysis into a data frame.
+
+**Note:** that there's a small difference between the code in this section and the R file for the same section. The R file clears the environment and resets the console before loading data. 
+
+```{R}
+# Set the URL and file path
+url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00468/online_shoppers_intention.csv"
+file_path <- "online_shoppers_intention.csv"
+
+# Download the dataset if it doesn't exist in the working directory
+if(!file.exists(file_path)) {
+  GET(url, write_disk(file_path, overwrite = TRUE))
+  message("Dataset downloaded successfully.")
+} else {
+  message("Dataset already exists in the working directory.")
+}
+
+# Load the dataset into R as a data frame
+online_shoppers_purchasing_intention_dataset <- read_csv(file_path)
+```
+
+- The dataset is loaded from a CSV file that contains 12,330 rows and 18 columns.
+- The dataset includes both numerical and categorical variables related to online shopper behaviours, such as `Revenue`, `BounceRates`, `PageValues`, and `VisitorType`.
+
+### Key Information:
+The dataset comprises variables like:
+
+- `Revenue`: The target variable indicating whether a purchase was made (TRUE/FALSE).
+- `BounceRates`, `ExitRates`: Metrics on how users leave the site.
+- `ProductRelated` and `ProductRelated_Duration`: Time and engagement on product-related pages.
+- `Month` and `VisitorType`: Categorical data specifying the month of visit and type of visitor (returning, new).
+
+## Data Exploration
+
+In this section, I inspect the structure of the dataset, check for missing values, and review basic statistics for the numerical features. This step is crucial for understanding the data's content and quality.
+
+```{R}
+# View the first few rows of the dataset
+head(online_shoppers_purchasing_intention_dataset)
+
+# Check for missing values in the dataset
+missing_values <- colSums(is.na(online_shoppers_purchasing_intention_dataset))
+print(missing_values)
+
+# Check the structure of the dataset
+str(online_shoppers_purchasing_intention_dataset)
+
+# Summary statistics for numerical features
+summary(online_shoppers_purchasing_intention_dataset)
+```
+
+**Data Overview:** The dataset contains 12,330 rows and 18 columns. It includes numerical, categorical, and logical variables, covering various aspects of online shopper behaviour, such as time spent on different types of web pages, bounce rates, exit rates, and whether a purchase (Revenue) was made.
+
+**Missing Values:** There are no missing values across the dataset, which indicates that the data is complete and ready for analysis without requiring imputation or further preprocessing to handle gaps.
+
+**Revenue Distribution:** Out of 12,330 instances, only 1,908 result in purchases (Revenue = TRUE), suggesting an imbalanced dataset with relatively few positive purchase outcomes. This may require special attention in model development, such as balancing techniques or specific performance metrics for minority classes.
+
+**Time Spent on Pages:** The mean values for the various time-based variables (e.g., ProductRelated_Duration, Administrative_Duration) show substantial variation. For example, users spend much more time on product-related pages (mean: 1194.8 seconds) compared to administrative or informational pages, highlighting that shoppers likely focus on product-related content during their sessions.
+
+**Bounce and Exit Rates:** The average bounce and exit rates are relatively low (mean bounce rate: 0.022, exit rate: 0.043), indicating that most users explore multiple pages rather than leaving the site immediately after arriving.
+
+## Visualising the Distribution of the Target Variable
+Here, I create visualisations to understand the distribution of the target variable (Revenue) and other important features. This helps us understand relationships in the dataset before modelling.
+
+```{R}
+
+# Plot the distribution of Revenue
+ggplot(online_shoppers_purchasing_intention_dataset, aes(x = Revenue)) +
+  geom_bar(fill = 'steelblue', width = 0.5) +  # Adjust the width of the bars
+  labs(title = "Distribution of Purchases (Revenue)",
+       x = "Revenue (Purchase Made)", y = "Count") +
+  theme(axis.text.x = element_text(size = 10, angle = 0, hjust = 1),  # Adjust x-axis text size
+        plot.title = element_text(hjust = 0.5))  # Center the title
+```
+
+**Distribution of Purchases (Revenue)**: 
+   - The dataset is highly imbalanced, with a much larger number of users who did not make a purchase (Revenue = FALSE) compared to those who did (Revenue = TRUE). This imbalance might influence model performance and may require handling techniques such as resampling.
+   
+```{R}
+
+# Bar plot for VisitorType and Revenue
+ggplot(online_shoppers_purchasing_intention_dataset, aes(x = VisitorType, fill = Revenue)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Visitor Type vs. Purchase Decision",
+       x = "Visitor Type", y = "Count", fill = "Revenue")
+```
+
+**Visitor Type vs Purchase Decision**: 
+   - Returning visitors are more likely to make a purchase compared to new or other visitor types. The majority of users are returning visitors who did not make a purchase, highlighting the importance of engagement strategies tailored to these users.
+   
+```{R}
+# Histogram for ProductRelated_Duration
+ggplot(online_shoppers_purchasing_intention_dataset, aes(x = ProductRelated_Duration)) +
+  geom_histogram(bins = 30, fill = 'tomato', color = 'black') +
+  labs(title = "Distribution of Time Spent on Product Related Pages",
+       x = "ProductRelated_Duration", y = "Frequency")
+```
+
+**Distribution of Time Spent on Product-Related Pages**: 
+   - Most users spend a relatively short amount of time on product-related pages, with the distribution being highly skewed. There are some outliers who spend significantly more time, but the bulk of users spend under 5,000 seconds.
+   
+```{R}
+# Boxplot for BounceRates grouped by Revenue
+ggplot(online_shoppers_purchasing_intention_dataset, aes(x = Revenue, y = BounceRates)) +
+  geom_boxplot(fill = 'lightblue') +
+  labs(title = "Bounce Rates by Purchase Decision",
+       x = "Revenue (Purchase Made)", y = "Bounce Rates")
+```
+
+**Bounce Rates by Purchase Decision**:
+   - Users who did not make a purchase generally have higher bounce rates compared to those who did make a purchase. This suggests that a higher bounce rate is associated with a lower likelihood of conversion, and reducing bounce rates could lead to better sales outcomes.
+   
+```{R}
+# Calculate correlation matrix for numerical features
+correlation_matrix <- cor(online_shoppers_purchasing_intention_dataset[, sapply(online_shoppers_purchasing_intention_dataset, is.numeric)])
+
+# Melt the matrix for plotting
+melted_corr <- melt(correlation_matrix)
+
+# Plot the heatmap
+ggplot(data = melted_corr, aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal() + 
+  labs(title = "Correlation Heatmap") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 9, hjust = 1))
+```
+
+**Correlation Heatmap**:
+   - Strong positive correlations are observed between `ProductRelated` and `ProductRelated_Duration`, as expected, since these both measure aspects of product page engagement. There is also a notable correlation between `BounceRates` and `ExitRates`, indicating that these features may share similar information.
+   
+## Calculating Correlation with Revenue
+In this section, I calculate correlations between the numerical features and the target variable (`Revenue`). This allows me to explore relationships between these features and the likelihood of a purchase.
+```{R}
+# Select numerical columns for correlation
+numerical_columns <- online_shoppers_purchasing_intention_dataset[, sapply(online_shoppers_purchasing_intention_dataset, is.numeric)]
+
+# Add Revenue as a binary numeric column (1 for TRUE, 0 for FALSE)
+numerical_columns$Revenue <- as.numeric(online_shoppers_purchasing_intention_dataset$Revenue)
+
+# Calculate point-biserial correlation
+correlation_with_revenue <- corr.test(numerical_columns, use="pairwise", method="pearson")
+print(correlation_with_revenue)
+```
+
+**Positive Correlation with Revenue**:
+   - Features such as `ProductRelated`, `ProductRelated_Duration`, and `PageValues` exhibit the strongest positive correlations with `Revenue`, with correlation values of 0.16, 0.15, and 0.49, respectively. This suggests that more interactions with product-related pages and higher page values increase the likelihood of a purchase.
+
+**Negative Correlation with Revenue**:
+   - `BounceRates` and `ExitRates` show moderate negative correlations with `Revenue`, at -0.15 and -0.21, respectively. This indicates that users who leave the website quickly (i.e., higher bounce or exit rates) are less likely to make a purchase.
+
+**Weak or No Correlation**:
+   - Other features such as `OperatingSystems`, `Browser`, `Region`, and `TrafficType` have very weak or near-zero correlations with `Revenue`, suggesting these variables have minimal impact on purchase decisions.
+
+
+## Feature Selection
+I perform feature selection by focusing on key features that have moderate to strong correlations with Revenue. I also perform one-hot encoding to convert categorical variables into numerical ones for model building.
+```{R}
+# Feature selection: focusing on key features with moderate to strong correlations with Revenue
+# Convert VisitorType to dummy variables (one-hot encoding)
+online_shoppers_purchasing_intention_dataset$VisitorType <- as.factor(online_shoppers_purchasing_intention_dataset$VisitorType)
+dummies <- dummyVars(" ~ VisitorType + Month", data = online_shoppers_purchasing_intention_dataset)
+online_shoppers_purchasing_intention_dataset_transformed <- data.frame(predict(dummies, newdata = online_shoppers_purchasing_intention_dataset))
+
+# Combine with the original dataset, keeping selected features
+final_data <- cbind(online_shoppers_purchasing_intention_dataset[, c("PageValues", "ProductRelated", "ProductRelated_Duration", "BounceRates", "ExitRates", "Revenue")],
+                    online_shoppers_purchasing_intention_dataset_transformed)
+```
+In the feature selection step, the following key features were selected:
+
+1. **PageValues**
+2. **ProductRelated**
+3. **ProductRelated_Duration**
+4. **BounceRates**
+5. **ExitRates**
+6. **Revenue** (target variable)
+
+Additionally, categorical variables `VisitorType` and `Month` were transformed using one-hot encoding (dummy variables) and combined with the selected features to create the final dataset used for modelling.
+
+## Data Splitting and Scaling
+In this section, I split the data into training and testing sets (80%-20%) and scale the numerical features to ensure that they are on the same scale before modelling.
+```{R}
+# Set seed for reproducibility
+set.seed(3350)
+
+# Split the data
+split <- sample.split(final_data$Revenue, SplitRatio = 0.8)
+train_data <- subset(final_data, split == TRUE)
+test_data <- subset(final_data, split == FALSE)
+
+# Standardise the numerical features in the training and testing data
+train_data_scaled <- as.data.frame(lapply(train_data[, c("PageValues", "ProductRelated", "ProductRelated_Duration", "BounceRates", "ExitRates")], scale))
+test_data_scaled <- as.data.frame(lapply(test_data[, c("PageValues", "ProductRelated", "ProductRelated_Duration", "BounceRates", "ExitRates")], scale))
+
+# Add the categorical variables and target (Revenue) back into the datasets
+train_data <- cbind(train_data_scaled, train_data[, -c(1:5)])
+test_data <- cbind(test_data_scaled, test_data[, -c(1:5)])
+```
+
+## Model 1: MLP Model
+I train a Multilayer Perceptron (MLP) model to classify whether or not a shopper will make a purchase. The model is trained on the training data and evaluated on the testing data.
+```{R}
+# Ensure that Revenue is a factor for classification
+train_data$Revenue <- as.factor(train_data$Revenue)
+test_data$Revenue <- as.factor(test_data$Revenue)
+
+# Train the MLP model for classification
+mlp_model <- nnet(Revenue ~ ., data = train_data, size = 10, maxit = 200)
+
+# Summary of the model
+summary(mlp_model)
+
+# Generate predictions using the MLP model
+predictions <- predict(mlp_model, test_data, type = "class")
+
+# Convert predictions and test_data$Revenue to factors with the same levels
+predictions <- factor(predictions, levels = levels(test_data$Revenue))
+test_data$Revenue <- factor(test_data$Revenue)
+
+# Confusion matrix to evaluate the model
+confusionMatrix(predictions, test_data$Revenue)
+```
+
+The results for the MLP (Multilayer Perceptron) model in this section show:
+
+1. **Training Process**: 
+   - The MLP model, configured with 10 neurons in the hidden layer and a maximum of 200 iterations, successfully trained, reaching a final cost function value of **1991.07**. This suggests the model converged after 200 iterations, improving its ability to classify the target variable (Revenue).
+
+2. **Model Structure**: 
+   - The summary reveals that the model has **18 input features**, **10 hidden neurons**, and **1 output neuron**, using a total of **201 weights**. These weights represent the connections between neurons and are essential for determining the strength and direction of the relationships between inputs and outputs.
+
+3. **Confusion Matrix**: 
+   - The confusion matrix shows the performance of the MLP model on the test data:
+     - **True negatives (correctly classified as FALSE)**: 1861
+     - **False negatives (incorrectly classified as FALSE)**: 143
+     - **True positives (correctly classified as TRUE)**: 239
+     - **False positives (incorrectly classified as TRUE)**: 223
+     
+4. **Key Metrics**:
+   - **Accuracy**: The model has an accuracy of **0.8516**, meaning it correctly classifies about 85% of instances. The 95% confidence interval is (0.8369, 0.8654), indicating a reliable classification performance.
+   - **Sensitivity** (True Negative Rate): **0.8930**, indicating the model is highly effective at correctly identifying users who did not make a purchase.
+   - **Specificity** (True Positive Rate): **0.6257**, meaning the model has moderate success in identifying users who did make a purchase.
+   - **Kappa**: **0.4778**, which measures agreement between predicted and actual classifications, suggests moderate classification performance.
+   - **Balanced Accuracy**: **0.7593**, indicating that the model performs reasonably well across both classes (purchases and no purchases).
+
+### Insights:
+- The model performs well, with high sensitivity (good at predicting users who don't purchase). However, its specificity is lower, indicating that the model struggles somewhat to accurately predict users who make a purchase.
+- The imbalance in the dataset (many more FALSE than TRUE values for Revenue) is reflected in the confusion matrix and accuracy metrics, as the model does well in predicting the majority class (FALSE) but is less effective with the minority class (TRUE).
+- The **McNemar's Test P-Value** being quite low (3.637e-05) suggests that there is a significant difference between the model's predictions of TRUE and FALSE, reinforcing that the model may need further optimisation to handle the imbalanced data.
+
+## Hyperparameter Tuning for MLP Model
+In this section, I will use grid search and cross-validation to fine-tune the number of neurons and regularisation because the initial MLP model showed promising accuracy but could benefit from better specificity in predicting purchases.
+```{R}
+# Define the grid of hyperparameters (size and decay only)
+tune_grid <- expand.grid(size = c(5, 10, 15),        # Number of neurons in the hidden layer
+                         decay = c(0.01, 0.1, 0.5))  # Regularisation parameter to prevent overfitting
+
+# Set up cross-validation control
+train_control <- trainControl(method = "cv", number = 5)  # 5-fold cross-validation
+
+# Train the MLP model with grid search
+set.seed(3350)
+mlp_tuned <- train(Revenue ~ ., 
+                   data = train_data, 
+                   method = "nnet", 
+                   tuneGrid = tune_grid, 
+                   trControl = train_control, 
+                   trace = FALSE,  # Suppress training output
+                   maxit = 200)    # Set maxit outside of tuneGrid
+
+# Print the best model found by grid search
+print(mlp_tuned$bestTune)
+
+# Predict on the test data using the best tuned model
+best_predictions <- predict(mlp_tuned, newdata = test_data)
+
+# Confusion matrix to evaluate the tuned model
+confusionMatrix(best_predictions, test_data$Revenue)
+```
+
+1. **Optimal Hyperparameters**:
+   - The grid search identified that the optimal configuration is **5 neurons** in the hidden layer with a **decay (regularisation) of 0.01**. This relatively small network with light regularisation suggests that the model can generalise well without overfitting.
+
+2. **Improved Model Performance**:
+   - The tuned MLP model shows an accuracy of **90.55%**, a notable improvement from the initial model's accuracy of 85.16%. The 95% confidence interval (0.8933, 0.9168) suggests a reliable performance.
+
+3. **Sensitivity and Specificity**:
+   - **Sensitivity (True Negative Rate)** improved to **95.35%**, meaning the model is very good at identifying non-purchasers.
+   - **Specificity (True Positive Rate)** slightly improved to **64.40%**, indicating better but still moderate performance in identifying purchasers compared to the initial model.
+   
+4. **Kappa Score**:
+   - The **Kappa score of 0.6234** shows a significant improvement in agreement between predicted and actual outcomes, demonstrating a more balanced model that better handles the class imbalance.
+
+5. **Balanced Accuracy**:
+   - **Balanced Accuracy** increased to **79.87%**, indicating that the model's ability to classify both classes (purchasers and non-purchasers) has improved, with a better balance between sensitivity and specificity.
+
+
+## Model 2: Random Forest Model
+In this section, I train a Random Forest model to classify purchases, using an ensemble approach to improve prediction performance.
+```{R}
+# Train the Random Forest model
+set.seed(3350)
+rf_model <- randomForest(Revenue ~ ., data = train_data, ntree = 100, mtry = 3, importance = TRUE)
+
+# Print the summary of the model
+print(rf_model)
+```
+
+1. **Model Configuration**:
+   - The model was trained using **100 trees** with **3 variables** randomly selected at each split. Random Forest typically benefits from bagging, which leads to reduced variance and improved accuracy compared to single models.
+
+2. **Out-of-Bag (OOB) Error**:
+   - The OOB error estimate is **10.03%**, indicating that the Random Forest model performs well, with an error rate of only 10% on the out-of-bag samples (data not used in the training process). This low error rate shows that the model generalises well to unseen data.
+
+3. **Confusion Matrix**:
+   - For **non-purchasers (FALSE)**: 
+     - The model correctly classified **8097** instances and misclassified **241** instances, resulting in a class error rate of **2.89%**.
+   - For **purchasers (TRUE)**: 
+     - The model correctly classified **778** instances but misclassified **748** instances, leading to a much higher class error rate of **49.02%**.
+   
+4. **Imbalance in Class Error**:
+   - The model performs exceptionally well for the majority class (non-purchasers) with a very low error rate. However, it struggles with the minority class (purchasers), with nearly half of the true purchasers misclassified. This suggests the model is biased towards the majority class, which is common in imbalanced datasets.
+
+
+## Model Comparison and Feature Importance
+Finally, I compare the MLP and Random Forest models using various performance metrics and visualise the importance of features in each model.
+
+```{R}
+# Evaluate the Random Forest Model
+rf_predictions <- predict(rf_model, newdata = test_data)
+confusionMatrix(rf_predictions, test_data$Revenue)
+```
+The Random Forest model achieved 90.92% accuracy with a high sensitivity of 97.26%. However, the model struggles with specificity at 56.28%, meaning it correctly identifies non-purchasers but has difficulty distinguishing purchasers from non-purchasers.
+```{R}
+# View feature importance from Random Forest
+importance(rf_model)
+varImpPlot(rf_model)
+```
+
+Feature importance from the Random Forest model highlights **PageValues**, **ExitRates**, and **ProductRelated_Duration** as the most important predictors. These features have the largest impact on model performance, indicating that user interaction with product pages and navigation behaviour (exits and bounces) are key factors in determining purchase behaviour.
+```{R}
+# Calculate performance metrics for the MLP model
+mlp_conf_matrix <- confusionMatrix(predictions, test_data$Revenue)
+mlp_accuracy <- mlp_conf_matrix$overall['Accuracy']
+mlp_precision <- mlp_conf_matrix$byClass['Pos Pred Value']
+mlp_recall <- mlp_conf_matrix$byClass['Sensitivity']
+mlp_f1 <- 2 * (mlp_precision * mlp_recall) / (mlp_precision + mlp_recall)
+```
+The MLP model has slightly lower accuracy (85.16%) compared to Random Forest but shows better specificity (62.57%) in predicting purchasers, indicating a stronger balance between sensitivity and specificity for detecting the minority class.
+```{R}
+# Calculate performance metrics for the Random Forest model
+rf_conf_matrix <- confusionMatrix(rf_predictions, test_data$Revenue)
+rf_accuracy <- rf_conf_matrix$overall['Accuracy']
+rf_precision <- rf_conf_matrix$byClass['Pos Pred Value']
+rf_recall <- rf_conf_matrix$byClass['Sensitivity']
+rf_f1 <- 2 * (rf_precision * rf_recall) / (rf_precision + rf_recall)
+
+# Print model comparison results
+model_comparison <- data.frame(
+  Model = c("MLP", "Random Forest"),
+  Accuracy = c(mlp_accuracy, rf_accuracy),
+  Precision = c(mlp_precision, rf_precision),
+  Recall = c(mlp_recall, rf_recall),
+  F1_Score = c(mlp_f1, rf_f1)
+)
+
+print(model_comparison)
+```
+
+Comparing the two models, the Random Forest outperforms the MLP model in terms of overall accuracy and sensitivity. However, the MLP model provides a slightly better balance for detecting the minority class (purchasers). The Random Forest’s F1 score (94.76%) is slightly higher than that of the MLP model (91.05%).
+
+```{R}
+# Now, extract and visualise the importance of features based on the MLP model's weights
+weights <- mlp_model$wts
+
+# Find the number of input features (including bias)
+n_input <- ncol(train_data) - 1  # Subtract 1 for the target variable
+
+# Extract the weights connecting the input layer to the hidden layer (skip the output layer for now)
+input_weights <- weights[1:(n_input * 10)]  # 10 is the number of hidden neurons used
+
+# Calculate the importance of each input feature as the sum of absolute values of their weights
+importance_scores <- apply(matrix(input_weights, nrow = n_input), 1, function(x) sum(abs(x)))
+
+# Create a data frame for feature importance
+mlp_importance <- data.frame(Feature = colnames(train_data)[1:n_input], Importance = importance_scores)
+
+# Sort by importance and visualise
+mlp_importance_sorted <- mlp_importance[order(-mlp_importance$Importance), ]
+
+# Visualise the importance of the top 10 features
+top_features <- head(mlp_importance_sorted, 10)
+ggplot(top_features, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = 'blue') +
+  labs(title = "MLP Feature Importance", x = "Features", y = "Importance") +
+  coord_flip()
+```
+
+The MLP model identifies **Revenue**, **ExitRates**, and several months (e.g., **MonthNov**, **MonthDec**) as the most significant features. These are consistent with the top features from the Random Forest model, further indicating the importance of user engagement with product pages and seasonal trends in predicting purchase behaviour.
+
+## Conclusion
+In this project, I set out to predict whether an online shopping session would culminate in a purchase by developing and comparing two machine learning models: a Multilayer Perceptron (MLP) and a Random Forest classifier. Through comprehensive data exploration and preprocessing, I prepared the dataset to address challenges such as class imbalance and the presence of both numerical and categorical variables.
+
+My analysis demonstrated that both models achieved high accuracy in predicting purchase intentions. The Random Forest model slightly outperformed the tuned MLP model, achieving an accuracy of **90.92%** compared to **90.55%** for the MLP. The Random Forest's superior performance is attributed to its ensemble nature, which enhances predictive accuracy by aggregating the results of multiple decision trees.
+
+However, the MLP model exhibited better balance in detecting the minority class (purchasers). Specifically, the MLP achieved a higher specificity, indicating it was more effective in correctly identifying actual purchasers despite the dataset's imbalance. This suggests that while Random Forests may offer higher overall accuracy, **MLPs might be more suitable when the correct classification of the minority class is a priority.**
+
+Feature importance analysis revealed that variables such as **PageValues**, **ExitRates**, and **ProductRelated_Duration** are significant predictors of purchasing **behaviour**. These features indicate that users who spend more time on product-related pages, view pages with higher value, and have lower exit rates are more likely to make a purchase. Additionally, categorical variables like **Month** and **VisitorType** also played a crucial role, highlighting the impact of seasonal trends and user engagement levels on purchasing decisions.
+
+Despite the strong performance of both models, the project faced limitations due to the imbalanced nature of the dataset, with a significantly higher number of non-purchase instances. Future work could involve implementing techniques like Synthetic Minority Over-sampling Technique (SMOTE) or cost-sensitive learning to further improve the models' ability to detect purchasers. Additionally, exploring other algorithms such as Gradient Boosting Machines or Deep Learning models might yield even better predictive performance.
+
+Overall, this project underscores the potential of machine learning models in predicting online shoppers' purchasing intentions. The insights gained from feature importance analysis can inform e-commerce businesses in refining their marketing strategies, **personalising** user experiences, and ultimately increasing conversion rates. By focusing on the key factors that influence purchasing **behaviour**, businesses can make data-driven decisions to enhance customer satisfaction and drive growth.
+
+
+## Sources:
+
+
+1. **Irizarry, R. (2022)** *PH125.8x: Data Science: Machine Learning*. HarvardX, edX. Available at: https://www.edx.org/course/harvardx-ph125-8x-data-science-machine-learning (Accessed: 29 September 2024).
+   
+2. **Irizarry, R. A. (2022)** *Introducción a la Ciencia de Datos: Análisis de datos y algoritmos de predicción con R*. HarvardX. Available at: https://leanpub.com/datasciencebook (Accessed: 29 September 2024).
+
+3. **Nelson, H. (2023)** *Essential Math for AI: Next-Level Mathematics for Efficient and Successful AI Systems*. 1st edn. Sebastopol: O'Reilly Media.
+
+4. **Sakar, C. and Kastro, Y. (2018)** *Online Shoppers Purchasing Intention Dataset*. UCI Machine Learning Repository. Available at: https://doi.org/10.24432/C5F88Q.
