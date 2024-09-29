@@ -8,7 +8,7 @@
 # 2. Load Libraries ..................................................... Line 38
 # 3. Data Download and Preparation ...................................... Line 54
 # 4. Data Exploration ................................................... Line 82
-# 5. Visualizing the Distribution of the Target Variable (Revenue) ...... Line 99
+# 5. Visualising the Distribution of the Target Variable (Revenue) ...... Line 99
 # 6. Calculating Correlation with Revenue ............................... Line 145
 # 7. Feature Selection .................................................. Line 160
 # 8. Data Splitting and Scaling ......................................... Line 175
@@ -96,7 +96,7 @@ str(online_shoppers_purchasing_intention_dataset)
 summary(online_shoppers_purchasing_intention_dataset)
 
 ##################################################################################
-# 5. Visualizing the Distribution of the Target Variable (Revenue)
+# 5. Visualising the Distribution of the Target Variable (Revenue)
 ##################################################################################
 
 # Plot the distribution of Revenue
