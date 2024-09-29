@@ -4,18 +4,18 @@
 # Date: 2024-09-28
 
 # Table of Contents
-# 1. Install Libraries .................................................. Line 18
-# 2. Load Libraries ..................................................... Line 34
-# 3. Data Download and Preparation ...................................... Line 50
-# 4. Data Exploration ................................................... Line 78
-# 5. Visualizing the Distribution of the Target Variable (Revenue) ...... Line 105
+# 1. Install Libraries .................................................. Line 22
+# 2. Load Libraries ..................................................... Line 38
+# 3. Data Download and Preparation ...................................... Line 54
+# 4. Data Exploration ................................................... Line 82
+# 5. Visualizing the Distribution of the Target Variable (Revenue) ...... Line 99
 # 6. Calculating Correlation with Revenue ............................... Line 145
 # 7. Feature Selection .................................................. Line 160
-# 8. Data Splitting and Scaling ......................................... Line 185
-# 9. Model 1: MLP Model ................................................. Line 205
-# 10. Hyperparameter Tuning for MLP Model ............................... Line 230
-# 11. Model 2: Random Forest Model ...................................... Line 265
-# 12. Model Comparison and Feature Importance ........................... Line 285
+# 8. Data Splitting and Scaling ......................................... Line 175
+# 9. Model 1: MLP Model ................................................. Line 195
+# 10. Hyperparameter Tuning for MLP Model ............................... Line 220
+# 11. Model 2: Random Forest Model ...................................... Line 252
+# 12. Model Comparison and Feature Importance ........................... Line 263
 
 
 ##################################################################################
